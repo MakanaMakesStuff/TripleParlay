@@ -46,15 +46,13 @@ export default function Home() {
 	if (error) return <p className="text-red-500">{error}</p>;
 
 	return (
-		<div className="flex flex-col items-center justify-start min-h-screen p-8 gap-8 bg-gray-900">
-			<h1 className="text-3xl font-bold text-gray-50 mb-4">
-				Triple Parlay — Select a Team
-			</h1>
+		<div className="flex flex-col items-center justify-start min-h-screen p-8 gap-8 text-gray-700">
+			<h1 className="text-3xl font-bold mb-4">Select a Team</h1>
 
 			<div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6 w-full max-w-6xl">
 				{teams.map((team) => (
 					<Link key={team.id} href={`/team/${team.id}`}>
-						<div className="cursor-pointer rounded-xl p-6 text-center bg-gray-800 shadow hover:shadow-lg hover:scale-105 transition-transform border border-gray-700">
+						<div className="cursor-pointer rounded-xl p-6 text-center bg-neutral-50 shadow hover:shadow-lg hover:scale-105 transition-transform ">
 							{team.logoUrl && (
 								<img
 									src={team.logoUrl}
@@ -62,9 +60,7 @@ export default function Home() {
 									className="mx-auto h-16 w-16 object-contain mb-2"
 								/>
 							)}
-							<p className="text-xl font-bold text-gray-50">
-								{team.abbreviation}
-							</p>
+							<p className="text-xl font-bold">{team.abbreviation}</p>
 							<p className="mt-1 text-sm text-gray-400">{team.name}</p>
 						</div>
 					</Link>

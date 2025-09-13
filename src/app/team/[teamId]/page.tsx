@@ -86,29 +86,34 @@ export default function TeamPage() {
 		}
 	};
 
-	if (loading) return <p className="text-gray-400">Loading roster...</p>;
+	if (loading)
+		return (
+			<div className="flex items-center justify-center min-h-screen bg-gray-100">
+				<div className="w-12 h-12 border-4 border-gray-300 border-t-gray-700 rounded-full animate-spin"></div>
+			</div>
+		);
 	if (error) return <p className="text-red-500">{error}</p>;
 
 	return (
-		<div className="flex flex-col items-center justify-start min-h-screen p-8 gap-8 bg-gray-900">
-			<h1 className="text-3xl font-bold text-gray-50">
+		<div className="flex flex-col items-center justify-start min-h-screen p-8 gap-8 text-gray-700">
+			<h1 className="text-3xl font-bold text-center">
 				{teamName} — Player Probabilities
 			</h1>
 
 			<div className="flex gap-4 flex-wrap w-full max-w-4xl justify-center">
 				<Link
 					href="/"
-					className="bg-gray-700 text-gray-50 px-4 py-2 rounded hover:bg-gray-600"
+					className="text-gray-700 bg-neutral-50 shadow-sm px-4 py-2 rounded"
 				>
 					← Back to Teams
 				</Link>
 
-				<div className="flex gap-4 items-center text-gray-50">
+				<div className="flex gap-4 items-center">
 					<label>Sort by:</label>
 					<select
 						value={sortOption}
 						onChange={(e) => setSortOption(e.target.value as SortOption)}
-						className="bg-gray-700 text-gray-50 px-2 py-1 rounded"
+						className="text-gray-700 bg-neutral-50 shadow-sm px-4 py-2 rounded"
 					>
 						<option value="hit">Hit Probability</option>
 						<option value="base">Base Probability</option>
@@ -117,7 +122,7 @@ export default function TeamPage() {
 					<select
 						value={sortOrder}
 						onChange={(e) => setSortOrder(e.target.value as SortOrder)}
-						className="bg-gray-700 text-gray-50 px-2 py-1 rounded"
+						className="text-gray-700 bg-neutral-50 shadow-sm px-4 py-2 rounded"
 					>
 						<option value="desc">Descending</option>
 						<option value="asc">Ascending</option>
@@ -130,12 +135,13 @@ export default function TeamPage() {
 					<Link
 						href={`/team/${teamId}/${p.id}`}
 						key={p.id}
-						className="bg-gray-800 rounded-xl shadow p-4 flex flex-col gap-3 border border-gray-700 hover:shadow-lg hover:scale-105 transition-transform"
+						className="cursor-pointer rounded-xl p-6 text-center bg-neutral-50 shadow hover:shadow-lg hover:scale-105 transition-transform"
 					>
-						<strong className="text-xl text-gray-50">{p.name}</strong>
-						<hr className="border-gray-700" />
+						<strong className="text-xl">{p.name}</strong>
 
-						<p className="text-gray-50 text-lg font-semibold">
+						<hr className="border-gray-700 mt-1 mb-4" />
+
+						<p className="text-lg font-semibold">
 							Hit Probability:{" "}
 							<span className="font-mono">
 								{p.rawHitProbability.toFixed(3)}
@@ -143,7 +149,7 @@ export default function TeamPage() {
 							{p.hitDue && <span className="text-green-400 ml-2">(Due)</span>}
 						</p>
 
-						<p className="text-gray-50 text-lg font-semibold">
+						<p className="text-lg font-semibold">
 							Base Probability:{" "}
 							<span className="font-mono">
 								{p.rawBaseProbability.toFixed(3)}
@@ -151,7 +157,7 @@ export default function TeamPage() {
 							{p.baseDue && <span className="text-orange-400 ml-2">(Due)</span>}
 						</p>
 
-						<p className="text-gray-50 text-lg font-semibold">
+						<p className="text-lg font-semibold">
 							Trajectory: {getTrajectoryIcon(p.trajectory)}
 						</p>
 					</Link>
