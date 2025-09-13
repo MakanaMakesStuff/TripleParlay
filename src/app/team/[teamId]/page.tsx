@@ -96,12 +96,12 @@ export default function TeamPage() {
 			</h1>
 
 			<div className="flex gap-4 flex-wrap w-full max-w-4xl justify-center">
-				<button
-					onClick={() => router.push("/")}
+				<Link
+					href="/"
 					className="bg-gray-700 text-gray-50 px-4 py-2 rounded hover:bg-gray-600"
 				>
 					← Back to Teams
-				</button>
+				</Link>
 
 				<div className="flex gap-4 items-center text-gray-50">
 					<label>Sort by:</label>
