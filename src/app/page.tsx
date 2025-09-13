@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 
 type Team = {
 	id: number;
@@ -23,6 +24,7 @@ export default function Home() {
 				);
 				const json = await res.json();
 				setTeams(
+					// eslint-disable-next-line @typescript-eslint/no-explicit-any
 					json.teams.map((t: any) => ({
 						id: t.id,
 						name: t.name,
@@ -32,6 +34,7 @@ export default function Home() {
 							`https://www.mlbstatic.com/team-logos/${t.id}.svg`,
 					}))
 				);
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			} catch (err: any) {
 				console.error(err);
 				setError("Failed to load teams");
@@ -54,9 +57,11 @@ export default function Home() {
 					<Link key={team.id} href={`/team/${team.id}`}>
 						<div className="cursor-pointer rounded-xl p-6 text-center bg-neutral-50 shadow hover:shadow-lg hover:scale-105 transition-transform ">
 							{team.logoUrl && (
-								<img
+								<Image
 									src={team.logoUrl}
 									alt={team.name}
+									width={100}
+									height={100}
 									className="mx-auto h-16 w-16 object-contain mb-2"
 								/>
 							)}

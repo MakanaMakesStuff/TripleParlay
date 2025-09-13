@@ -34,7 +34,7 @@ export async function getPlayerProbability(playerId: number): Promise<{
 	playerName: string;
 	error: string | null;
 }> {
-	let playerResult: PlayerResult | null = null;
+	const playerResult: PlayerResult | null = null;
 	let playerName = "";
 	let error: string | null = null;
 
@@ -61,6 +61,7 @@ export async function getPlayerProbability(playerId: number): Promise<{
 
 		const analyzedGames: PlayerGameStats[] = gameLogs
 			.slice(-50)
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			.map((g: any) => ({
 				date: g.date,
 				hits: g.stat.hits,

@@ -15,6 +15,7 @@ export default async function handler(
 		const response = await fetch(url);
 		const data = await response.json();
 		res.status(200).json(data);
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	} catch (err: any) {
 		res.status(500).json({ error: err.message });
 	}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import { getPlayerProbability, PlayerResult } from "@/utils/probability";
 import { ArrowUpCircle, ArrowDownCircle, MinusCircle } from "lucide-react";
@@ -11,7 +11,6 @@ type SortOrder = "asc" | "desc";
 
 export default function TeamPage() {
 	const params = useParams();
-	const router = useRouter();
 	const teamId = params.teamId;
 
 	const [teamName, setTeamName] = useState<string>("");
@@ -54,6 +53,7 @@ export default function TeamPage() {
 				}
 
 				setResults(playerResults);
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			} catch (err: any) {
 				console.error(err);
 				setError("Failed to fetch team or roster");

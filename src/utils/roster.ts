@@ -4,6 +4,7 @@ export async function getTeamRoster(teamId: number) {
 	);
 	if (!res.ok) throw new Error("Failed to fetch roster");
 	const data = await res.json();
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	return data.roster.map((p: any) => ({
 		id: p.person.id,
 		name: p.person.fullName,
