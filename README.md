@@ -1,36 +1,142 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# MLB Player Odds Scoring
 
-## Getting Started
+This module calculates player probabilities, scores, and American betting odds for MLB hitters. It is designed for parlay generation and player evaluation.
 
-First, run the development server:
+---
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## Table of Contents
+
+- [HitterStats](#hitterstats)
+- [ScoredHitter](#scoredhitter)
+- [Scoring Logic](#scoring-logic)
+- [Probability to Score](#probability-to-score)
+- [Probability to Odds](#probability-to-odds)
+- [Notes and Tweaks](#notes-and-tweaks)
+
+---
+
+## HitterStats
+
+Represents the raw inputs for a player:
+
+```ts
+export type HitterStats = {
+	paPerGame: number; // Plate appearances per game
+	obp: number; // On-base percentage (0-1)
+	iso: number; // Isolated power (SLG - AVG)
+	recentForm: number; // Recent performance multiplier (0-1)
+	oppKpct: number; // Opponent strikeout rate (0-1)
+	parkFactor: number; // Park adjustment (1 = neutral)
+};
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- **paPerGame:** Higher PA increases chances of getting hits or bases.
+- **obp:** Strongest factor for hit probability.
+- **iso:** Strongest factor for base probability (extra-base hits).
+- **recentForm:** Player streaks/slumps. Should be normalized 0–1.
+- **oppKpct:** Opponent strikeout percentage. High K% reduces probabilities.
+- **parkFactor:** Adjusts for hitter-friendly or pitcher-friendly ballparks.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## ScoredHitter
 
-## Learn More
+Represents the output:
 
-To learn more about Next.js, take a look at the following resources:
+```ts
+export type ScoredHitter = {
+	hitProbability: number; // Raw probability [0-1]
+	baseProbability: number; // Raw probability [0-1]
+	hitScore: number; // 1-5 scale
+	baseScore: number; // 1-5 scale
+	hitOdds: number; // American odds
+	baseOdds: number; // American odds
+};
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Scoring Logic
 
-## Deploy on Vercel
+1. **Hit Probability:**
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```
+hitProbability =
+  60% * OBP +
+  10% * normalized PA +
+  20% * recentForm +
+  10% * (1 - opponentK%)
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+2. **Base Probability:**
+
+```
+baseProbability =
+  50% * ISO +
+  10% * OBP (to include singles) +
+  20% * normalized PA +
+  20% * recentForm +
+  10% * (1 - opponentK%)
+```
+
+- All probabilities are multiplied by `parkFactor` and clamped to `[0,1]`.
+
+---
+
+## Probability to Score
+
+Maps probability `[0-1]` to 1–5 scale:
+
+- `<0.2 → 1`
+- `<0.35 → 2`
+- `<0.5 → 3`
+- `<0.65 → 4`
+- `>=0.65 → 5`
+
+---
+
+## Probability to Odds
+
+Converts raw probability to **American betting odds**:
+
+- If probability `p > 0.5` → favorite → negative odds
+- If probability `p < 0.5` → underdog → positive odds
+- Edge cases: `p=0` or `p=1` → ±1000
+
+Formula:
+
+```ts
+p > 0.5 ? Math.round((-100 * p) / (1 - p)) : Math.round((100 * (1 - p)) / p);
+```
+
+---
+
+## Notes and Tweaks
+
+- **Normalization:** PA per game is normalized to 5 PAs (`Math.min(paPerGame / 5, 1)`), so extreme PAs don’t dominate probability.
+- **Clamping:** All probabilities are clamped to `[0,1]` to prevent invalid odds or scores.
+- **Base probability includes OBP:** Prevents undervaluing singles.
+- **Adjustable weights:** The contribution of OBP, ISO, PA, recentForm, and oppKpct can be tweaked as needed.
+- **Future enhancements:** Incorporate matchup splits, fatigue, pitcher quality, or park-specific splits.
+
+---
+
+## Usage Example
+
+```ts
+import { scoreHitterProp, HitterStats } from "./process";
+
+const player: HitterStats = {
+	paPerGame: 4,
+	obp: 0.35,
+	iso: 0.15,
+	recentForm: 0.8,
+	oppKpct: 0.2,
+	parkFactor: 1,
+};
+
+const scored = scoreHitterProp(player);
+console.log(scored);
+```
+
+This returns raw probabilities, 1-5 scores, and American-style odds for hits and bases.
