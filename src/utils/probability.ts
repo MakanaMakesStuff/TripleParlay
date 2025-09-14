@@ -25,6 +25,8 @@ export type PlayerResult = {
 	baseOdds: number;
 	trajectory: "up" | "down" | "stable";
 	recentGames: PlayerGameStats[];
+	last30Games: PlayerGameStats[];
+	last50Games: PlayerGameStats[];
 	hitDue: boolean;
 	baseDue: boolean;
 };
@@ -67,7 +69,8 @@ export async function getPlayerProbability(playerId: number): Promise<{
 				hits: g.stat.hits,
 				bases: g.stat.totalBases,
 				pa: g.stat.plateAppearances,
-			}));
+			}))
+			.filter((g: PlayerGameStats) => g.pa > 0);
 
 		// --- Season totals ---
 		const totalPa = analyzedGames.reduce((sum, g) => sum + g.pa, 0);
@@ -128,6 +131,8 @@ export async function getPlayerProbability(playerId: number): Promise<{
 				baseOdds: scored.americanOdds,
 				trajectory,
 				recentGames: last7Games,
+				last30Games: analyzedGames.slice(-30),
+				last50Games: analyzedGames,
 				hitDue,
 				baseDue,
 			},

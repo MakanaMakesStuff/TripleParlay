@@ -2,6 +2,7 @@ import { ArrowUpCircle, ArrowDownCircle, MinusCircle } from "lucide-react";
 import PlayerChart from "@/components/PlayerChart";
 import { getPlayerProbability } from "@/utils/probability";
 import Link from "next/link";
+import Image from "next/image";
 
 type Props = {
 	params: Promise<{
@@ -26,6 +27,7 @@ export default async function PlayerPage({ params }: Props) {
 			next: { revalidate: 60 * 60 }, // cache for 1h
 		}
 	);
+
 	const json = await res.json();
 	const player = json.people?.[0];
 
@@ -55,11 +57,20 @@ export default async function PlayerPage({ params }: Props) {
 
 	return (
 		<div className="flex flex-col items-center min-h-screen p-8 gap-8 bg-gray-100">
-			<h1 className="text-3xl font-bold text-gray-800">{playerName}</h1>
+			<h1 className="text-3xl font-bold text-gray-800 flex flex-row flex-wrap gap-2 justify-center items-center">
+				<Image
+					src={`https://www.mlbstatic.com/team-logos/${teamId}.svg`}
+					alt={`Team of ${playerName}`}
+					width={50}
+					height={50}
+					className="w-12 h-12 object-contain"
+				/>
+				{playerName}
+			</h1>
 
 			<Link
 				href={`/team/${teamId}`}
-				className="bg-gray-800 text-white px-4 py-2 rounded shadow hover:bg-gray-700"
+				className="text-gray-700 bg-neutral-50 shadow-sm px-4 py-2 rounded"
 			>
 				← Back to Team
 			</Link>
@@ -128,7 +139,7 @@ export default async function PlayerPage({ params }: Props) {
 				<div className="rounded-xl p-6 bg-white shadow flex-1">
 					<h2 className="text-xl font-semibold mb-4">Recent Performance</h2>
 					<PlayerChart
-						recentGames={playerResult.recentGames}
+						allRecentGames={playerResult.last30Games}
 						nextHitProb={playerResult.rawHitProbability}
 						nextBaseProb={playerResult.rawBaseProbability}
 					/>

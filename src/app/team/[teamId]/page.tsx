@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { getPlayerProbability, PlayerResult } from "@/utils/probability";
 import { ArrowUpCircle, ArrowDownCircle, MinusCircle } from "lucide-react";
+import Image from "next/image";
 
 type SortOption = "hit" | "base";
 type SortOrder = "asc" | "desc";
@@ -14,6 +15,8 @@ export default function TeamPage() {
 	const teamId = params.teamId;
 
 	const [teamName, setTeamName] = useState<string>("");
+	const [teamLogo, setTeamLogo] = useState<string | null>(null);
+
 	const [results, setResults] = useState<PlayerResult[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
@@ -30,6 +33,9 @@ export default function TeamPage() {
 				);
 				const teamJson = await teamRes.json();
 				setTeamName(teamJson.teams?.[0]?.name || "Team");
+				setTeamLogo(
+					`https://www.mlbstatic.com/team-logos/${teamJson.teams?.[0]?.id}.svg`
+				); // MLB API might use "teamLogo" or "logo" field, adjust accordingly
 
 				const rosterRes = await fetch(
 					`https://statsapi.mlb.com/api/v1/teams/${teamId}/roster`
@@ -96,8 +102,17 @@ export default function TeamPage() {
 
 	return (
 		<div className="flex flex-col items-center justify-start min-h-screen p-8 gap-8 text-gray-700">
-			<h1 className="text-3xl font-bold text-center">
-				{teamName} — Player Probabilities
+			<h1 className="flex flex-row flex-wrap text-3xl font-bold text-center justify-center items-center gap-4">
+				{teamLogo && (
+					<Image
+						src={teamLogo}
+						alt={`${teamName} logo`}
+						width={50}
+						height={50}
+						className="w-12 h-12 object-contain"
+					/>
+				)}
+				{teamName} — Player Stats
 			</h1>
 
 			<div className="flex gap-4 flex-wrap w-full max-w-4xl justify-center">

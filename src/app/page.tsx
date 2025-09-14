@@ -29,9 +29,7 @@ export default function Home() {
 						id: t.id,
 						name: t.name,
 						abbreviation: t.abbreviation,
-						logoUrl:
-							t.teamLogoUrl ||
-							`https://www.mlbstatic.com/team-logos/${t.id}.svg`,
+						logoUrl: `https://www.mlbstatic.com/team-logos/${t.id}.svg`,
 					}))
 				);
 				// eslint-disable-next-line @typescript-eslint/no-explicit-any
