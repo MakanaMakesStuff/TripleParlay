@@ -1,19 +1,15 @@
-// components/BreakdownPage.tsx
 "use client";
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import {
-	getPlayersForGame,
-	getPlayerStatsForGame,
-	PlayerStats,
-} from "@/utils/endpoints";
+import { getPlayerStatsForGame, PlayerStats } from "@/utils/endpoints";
 import Image from "next/image";
 
 type TeamInfo = {
 	id: number;
 	name: string;
 	logoUrl: string;
+	playerIds: number[];
 };
 
 const normalizeCombined = (teamA: PlayerStats[], teamB: PlayerStats[]) => {
@@ -27,9 +23,7 @@ const normalizeCombined = (teamA: PlayerStats[], teamB: PlayerStats[]) => {
 		players.map((p) => ({
 			...p,
 			normalizedScore:
-				(p.hits / hitsMax +
-					(1 - p.strikeouts / strikeoutsMax) +
-					p.bases / basesMax) /
+				(p.hits / hitsMax + (1 - p.strikeouts / strikeoutsMax) + p.bases / basesMax) /
 				3,
 		}));
 
@@ -45,54 +39,54 @@ export default function BreakdownPage() {
 	const teamBId = searchParams.get("teamB");
 	const gamePk = searchParams.get("gamePk");
 
-	const [teamAPlayers, setTeamAPlayers] = useState<PlayerStats[]>([]);
-	const [teamBPlayers, setTeamBPlayers] = useState<PlayerStats[]>([]);
 	const [teamAInfo, setTeamAInfo] = useState<TeamInfo | null>(null);
 	const [teamBInfo, setTeamBInfo] = useState<TeamInfo | null>(null);
+	const [teamAPlayers, setTeamAPlayers] = useState<PlayerStats[]>([]);
+	const [teamBPlayers, setTeamBPlayers] = useState<PlayerStats[]>([]);
 	const [loading, setLoading] = useState(true);
-
-	const getTeamInfo = async (id: string | number): Promise<TeamInfo> => {
-		const res = await fetch(`https://statsapi.mlb.com/api/v1/teams/${id}`);
-		const data = await res.json();
-		const team = data.teams[0];
-		return {
-			id: team.id,
-			name: team.name,
-			logoUrl: `https://www.mlbstatic.com/team-logos/${team.id}.svg`,
-		};
-	};
 
 	useEffect(() => {
 		if (!teamAId || !teamBId || !gamePk) return;
 
 		async function fetchStats() {
 			setLoading(true);
-
 			try {
-				const [aInfo, bInfo] = await Promise.all([
-					getTeamInfo(teamAId!),
-					getTeamInfo(teamBId!),
-				]);
-				setTeamAInfo(aInfo);
-				setTeamBInfo(bInfo);
+				// 1. Fetch boxscore to get player IDs
+				const res = await fetch(`https://statsapi.mlb.com/api/v1/game/${gamePk}/boxscore`);
+				const data = await res.json();
 
-				const [teamAPlayerIds, teamBPlayerIds] = await Promise.all([
-					getPlayersForGame(Number(teamAId), Number(gamePk)),
-					getPlayersForGame(Number(teamBId), Number(gamePk)),
-				]);
+				const homeTeam = data.teams.home;
+				const awayTeam = data.teams.away;
 
-				if (!teamAPlayerIds.length || !teamBPlayerIds.length) {
-					console.warn("No players found for one of the teams");
-					setTeamAPlayers([]);
-					setTeamBPlayers([]);
-					return;
-				}
+				const getPlayerIds = (team: any) =>
+					Object.values(team.players).map((p: any) => p.person.id);
 
+				// Map teamAId to home/away
+				const teamAIsHome = Number(teamAId) === homeTeam.team.id;
+				const teamAPlayersIds = teamAIsHome ? getPlayerIds(homeTeam) : getPlayerIds(awayTeam);
+				const teamBPlayersIds = teamAIsHome ? getPlayerIds(awayTeam) : getPlayerIds(homeTeam);
+
+				// 2. Fetch player stats
 				const [aStatsRes, bStatsRes] = await Promise.all([
-					getPlayerStatsForGame(teamAPlayerIds, Number(gamePk)),
-					getPlayerStatsForGame(teamBPlayerIds, Number(gamePk)),
+					getPlayerStatsForGame(teamAPlayersIds, Number(gamePk)),
+					getPlayerStatsForGame(teamBPlayersIds, Number(gamePk)),
 				]);
 
+				// 3. Get team info
+				const getTeamInfo = (team: any) => ({
+					id: team.team.id,
+					name: team.team.name,
+					logoUrl: `https://www.mlbstatic.com/team-logos/${team.team.id}.svg`,
+					playerIds: Object.values(team.players).map((p: any) => p.person.id),
+				});
+
+				const teamAInfo = teamAIsHome ? getTeamInfo(homeTeam) : getTeamInfo(awayTeam);
+				const teamBInfo = teamAIsHome ? getTeamInfo(awayTeam) : getTeamInfo(homeTeam);
+
+				setTeamAInfo(teamAInfo);
+				setTeamBInfo(teamBInfo);
+
+				// 4. Normalize combined scores
 				const { teamA: normalizedA, teamB: normalizedB } = normalizeCombined(
 					aStatsRes.players ?? [],
 					bStatsRes.players ?? []
