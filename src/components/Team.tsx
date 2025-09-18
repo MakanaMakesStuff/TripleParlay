@@ -104,7 +104,7 @@ export default function Team({
 	};
 
 	return (
-		<div className="flex flex-col justify-center p-4">
+		<div className="flex flex-col justify-center p-4 w-full max-w-[900px] m-auto">
 			{/* Header */}
 			<div className="flex flex-col justify-center items-center mb-4">
 				<Image
@@ -156,113 +156,109 @@ export default function Team({
 				</button>
 			</div>
 
-			<div className="flex flex-row items-start justify-center w-full max-w-[1000px] m-auto">
-				<div className="flex flex-col justify-center">
-					{/* Games List */}
-					<div className="grid lg:grid-cols-3 md:grid-cols-2 grid-cols-1 gap-3 max-w-[900px] m-auto mb-6">
-						{processedGames.map((game, i) => {
-							const isHome = game.teams.home.team.id === Number(slug);
-							const teamSide = isHome ? game.teams.home : game.teams.away;
-							const opponentSide = isHome ? game.teams.away : game.teams.home;
+			{showAnalysis && Object.keys(teamPerformance).length > 0 && (
+				<div className="w-fill">
+					<h3 className="text-center font-semibold mb-4">
+						Team Matchup Performance
+					</h3>
 
-							const formattedDate = new Date(game.date).toLocaleDateString(
-								"en-US",
-								{
-									month: "short",
-									day: "numeric",
-									year: "numeric",
-								}
-							);
+					<table className="w-full border-collapse border border-neutral-300">
+						<thead>
+							<tr className="bg-neutral-100">
+								<th className="border px-2 py-1 text-left">Opponent</th>
+								<th className="border px-2 py-1 text-left">Normalized Score</th>
+							</tr>
+						</thead>
+						<tbody>
+							{Object.entries(teamPerformance).map(([opp, score]) => (
+								<tr key={opp}>
+									<td className="border px-2 py-1">{opp}</td>
+									<td className="border px-2 py-1">{score.toFixed(2)}</td>
+								</tr>
+							))}
+						</tbody>
+					</table>
+				</div>
+			)}
 
-							const teamAId = teamSide.team.id;
-							const teamBId = opponentSide.team.id;
+			<br />
 
-							return (
-								<Link
-									key={i}
-									href={`/breakdown?teamA=${teamAId}&teamB=${teamBId}&gamePk=${game.gamePk}`}
-									className={`flex flex-col w-full p-3 gap-2 rounded-md shadow-sm bg-neutral-50 hover:scale-[1.02] transition-transform border-2 ${
-										teamSide.isWinner ? "border-green-500" : "border-red-500"
+			<div className="grid lg:grid-cols-3 md:grid-cols-2 sm:grid-cols-2 grid-cols-1 gap-3 m-auto mb-6 w-full">
+				{processedGames.map((game, i) => {
+					const isHome = game.teams.home.team.id === Number(slug);
+					const teamSide = isHome ? game.teams.home : game.teams.away;
+					const opponentSide = isHome ? game.teams.away : game.teams.home;
+
+					const formattedDate = new Date(game.date).toLocaleDateString(
+						"en-US",
+						{
+							month: "short",
+							day: "numeric",
+							year: "numeric",
+						}
+					);
+
+					const teamAId = teamSide.team.id;
+					const teamBId = opponentSide.team.id;
+
+					return (
+						<Link
+							key={i}
+							href={
+								opponentFilter == "all"
+									? ""
+									: `/breakdown?teamA=${teamAId}&teamB=${teamBId}&gamePks=${encodeURIComponent(
+											JSON.stringify(processedGames?.map((g) => g.gamePk))
+									  )}`
+							}
+							className={`flex flex-col w-full p-3 gap-2 rounded-md shadow-sm bg-neutral-50 hover:scale-[1.02] transition-transform border-2 ${
+								teamSide.isWinner ? "border-green-500" : "border-red-500"
+							}`}
+						>
+							<span className="text-xs text-neutral-500">{formattedDate}</span>
+
+							<div className="flex justify-between items-center text-sm font-medium gap-2">
+								<div className="flex items-center gap-2">
+									<Image
+										src={`https://www.mlbstatic.com/team-logos/${slug}.svg`}
+										alt={`${slug} Logo`}
+										width={20}
+										height={20}
+										className="h-5 w-5"
+									/>
+									{teamSide.team.name}
+								</div>
+								<span className="text-base font-bold">{teamSide.score}</span>
+							</div>
+
+							<div className="flex justify-between items-center text-sm font-medium gap-2">
+								<div className="flex items-center gap-2">
+									<Image
+										src={`https://www.mlbstatic.com/team-logos/${opponentSide.team.id}.svg`}
+										alt={`${opponentSide.team.name} Logo`}
+										width={20}
+										height={20}
+										className="h-5 w-5"
+									/>
+									{opponentSide.team.name}
+								</div>
+								<span className="text-base font-bold">
+									{opponentSide.score}
+								</span>
+							</div>
+
+							<div className="flex justify-between items-center mt-1">
+								<span
+									className={`text-xs ml-auto mr-0 font-semibold ${
+										teamSide.isWinner ? "text-green-500" : "text-red-500"
 									}`}
 								>
-									<span className="text-xs text-neutral-500">
-										{formattedDate}
-									</span>
-
-									<div className="flex justify-between items-center text-sm font-medium gap-2">
-										<div className="flex items-center gap-2">
-											<Image
-												src={`https://www.mlbstatic.com/team-logos/${slug}.svg`}
-												alt={`${slug} Logo`}
-												width={20}
-												height={20}
-												className="h-5 w-5"
-											/>
-											{teamSide.team.name}
-										</div>
-										<span className="text-base font-bold">
-											{teamSide.score}
-										</span>
-									</div>
-
-									<div className="flex justify-between items-center text-sm font-medium gap-2">
-										<div className="flex items-center gap-2">
-											<Image
-												src={`https://www.mlbstatic.com/team-logos/${opponentSide.team.id}.svg`}
-												alt={`${opponentSide.team.name} Logo`}
-												width={20}
-												height={20}
-												className="h-5 w-5"
-											/>
-											{opponentSide.team.name}
-										</div>
-										<span className="text-base font-bold">
-											{opponentSide.score}
-										</span>
-									</div>
-
-									<div className="flex justify-between items-center mt-1">
-										<span
-											className={`text-xs ml-auto mr-0 font-semibold ${
-												teamSide.isWinner ? "text-green-500" : "text-red-500"
-											}`}
-										>
-											{teamSide.isWinner ? "Win" : "Loss"}
-										</span>
-									</div>
-								</Link>
-							);
-						})}
-					</div>
-				</div>
-
-				{/* Performance Table */}
-				{showAnalysis && Object.keys(teamPerformance).length > 0 && (
-					<div className="w-max grow px-4">
-						<h3 className="text-center font-semibold mb-4">
-							Team Matchup Performance
-						</h3>
-
-						<table className="w-full border-collapse border border-neutral-300">
-							<thead>
-								<tr className="bg-neutral-100">
-									<th className="border px-2 py-1 text-left">Opponent</th>
-									<th className="border px-2 py-1 text-left">
-										Normalized Score
-									</th>
-								</tr>
-							</thead>
-							<tbody>
-								{Object.entries(teamPerformance).map(([opp, score]) => (
-									<tr key={opp}>
-										<td className="border px-2 py-1">{opp}</td>
-										<td className="border px-2 py-1">{score.toFixed(2)}</td>
-									</tr>
-								))}
-							</tbody>
-						</table>
-					</div>
-				)}
+									{teamSide.isWinner ? "Win" : "Loss"}
+								</span>
+							</div>
+						</Link>
+					);
+				})}
 			</div>
 		</div>
 	);

@@ -15,17 +15,16 @@ export default async function Home() {
 				{teams?.map((team, i) => (
 					<Link
 						href={`/${team.id}`}
-						className="flex flex-col w-full h-auto min-h-max aspect-square m-auto justify-center items-center p-4 gap-4 rounded-md shadow-md bg-neutral-50 hover:scale-105 transition-transform"
+						className="flex flex-col w-full h-auto min-h-max m-auto justify-center items-center p-4 gap-4 rounded-md shadow-md bg-neutral-50 hover:scale-105 transition-transform"
 						key={i}
 					>
 						<Image
 							src={`https://www.mlbstatic.com/team-logos/${team.id}.svg`}
 							alt={`${team.teamName} Logo`}
-							width={25}
-							height={25}
-							className="w-max h-24 object-cover"
+							width={100} // placeholder, ignored by object-contain
+							height={100} // placeholder, ignored by object-contain
+							className="h-16 w-auto object-contain"
 						/>
-
 						<span>{team.teamName}</span>
 					</Link>
 				))}

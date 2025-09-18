@@ -223,6 +223,7 @@ export async function getPlayerStatsForGame(
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			const gameStats = gameLog.find((g: any) => g.game?.gamePk === gamePk);
 
+			console.log(gameLog);
 			if (!gameStats) continue;
 
 			players.push({
