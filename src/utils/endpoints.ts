@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 export type Team = {
 	springLeague: {
 		id: number;
@@ -165,6 +166,60 @@ export async function getGames(teamId: number, season = 2025) {
 	}
 }
 
+export async function getPlayerStatsForSeason(teamId: number, season = 2025) {
+	try {
+		const { dates } = await getGames(teamId, season);
+		const completedGames =
+			dates?.flatMap((d) =>
+				d.games.filter((g) => g.status.abstractGameState === "Final")
+			) ?? [];
+
+		const playerMap: Record<number, PlayerStats> = {};
+
+		for (const game of completedGames) {
+			const res = await fetch(
+				`https://statsapi.mlb.com/api/v1/game/${game.gamePk}/boxscore`
+			);
+
+			if (!res.ok)
+				throw new Error(`Failed to fetch boxscore for game ${game.gamePk}`);
+
+			const data = await res.json();
+
+			const teamKey = teamId === data.teams.home.team.id ? "home" : "away";
+			const roster = data.teams[teamKey].players;
+
+			for (const p of Object.values(roster)) {
+				const person = (p as any).person;
+				const batting = (p as any).stats?.batting;
+				if (!batting) continue;
+
+				if (!playerMap[person.id]) {
+					playerMap[person.id] = {
+						id: person.id,
+						name: person.fullName,
+						hits: 0,
+						strikeouts: 0,
+						bases: 0,
+					};
+				}
+
+				playerMap[person.id].hits += batting.hits ?? 0;
+				playerMap[person.id].strikeouts += batting.strikeOuts ?? 0;
+				playerMap[person.id].bases +=
+					(batting.doubles ?? 0) * 2 +
+					(batting.triples ?? 0) * 3 +
+					(batting.homeRuns ?? 0) * 4;
+			}
+		}
+
+		return { status: 200, players: Object.values(playerMap) };
+	} catch (error) {
+		console.error(`Failed to get season stats for team id: ${teamId}`, error);
+		return { status: 500, error };
+	}
+}
+
 export async function getPlayersForGame(teamId: number, gamePk: number) {
 	try {
 		const res = await fetch(
@@ -242,5 +297,43 @@ export async function getPlayerStatsForGame(
 	} catch (error) {
 		console.error("Failed to get player stats:", error);
 		return { status: 500, error };
+	}
+}
+
+export async function getPlayerGameLog(
+	playerId: number,
+	season = 2025,
+	n = 10
+) {
+	try {
+		const res = await fetch(
+			`https://statsapi.mlb.com/api/v1/people/${playerId}/stats?stats=gameLog&group=hitting&season=${season}&gameType=R`
+		);
+
+		if (!res.ok)
+			throw new Error(`Failed to fetch gameLog for player ${playerId}`);
+
+		const data = await res.json();
+		const splits = data?.stats?.[0]?.splits || [];
+		const lastNGames = splits.slice(-n);
+
+		const hits = lastNGames.map((g: any) => g.stat?.hits ?? 0);
+		const strikeouts = lastNGames.map((g: any) => g.stat?.strikeOuts ?? 0);
+		const games = lastNGames.map((g: any) => ({
+			gamePk: g.game?.gamePk,
+			date: g.game?.date,
+			stat: g.stat,
+		}));
+
+		return { status: 200, games, hits, strikeouts };
+	} catch (error) {
+		console.error(`Failed to get gameLog for player ${playerId}`, error);
+		return {
+			status: 500,
+			error,
+			games: [],
+			hits: Array(n).fill(0),
+			strikeouts: Array(n).fill(0),
+		};
 	}
 }

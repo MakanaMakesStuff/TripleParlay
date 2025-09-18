@@ -8,7 +8,7 @@ export default function Header() {
 
 	return (
 		<>
-			<div className="sticky top-0 left-0 px-4 bg-white shadow">
+			<div className="sticky top-0 left-0 px-4 bg-white shadow z-10">
 				<div
 					className={
 						pathname == "/"

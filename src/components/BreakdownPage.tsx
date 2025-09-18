@@ -3,7 +3,12 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
-import { getPlayerStatsForGame, PlayerStats } from "@/utils/endpoints";
+import {
+	getPlayerStatsForSeason,
+	getPlayerGameLog,
+	getTeams,
+	type PlayerStats,
+} from "@/utils/endpoints";
 import Image from "next/image";
 import {
 	ResponsiveContainer,
@@ -35,50 +40,46 @@ type PlayerWithTrend = PlayerStats & {
 	placementScore?: number;
 };
 
-const combineStats = (statsArray: PlayerStats[][]): PlayerStats[] => {
-	const combined: Record<number, PlayerStats> = {};
-	for (const stats of statsArray) {
-		for (const player of stats) {
-			if (!combined[player.id]) combined[player.id] = { ...player };
-			else
-				combined[player.id] = {
-					...combined[player.id],
-					hits: (combined[player.id].hits || 0) + (player.hits || 0),
-					strikeouts:
-						(combined[player.id].strikeouts || 0) + (player.strikeouts || 0),
-					bases: (combined[player.id].bases || 0) + (player.bases || 0),
-				};
-		}
-	}
-	return Object.values(combined);
+const computeTrend = (last3: number[], last7: number[], last10: number[]) => {
+	const avg = (arr: number[]) =>
+		arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
+	const avg3 = avg(last3);
+	const avg7 = avg(last7);
+	const avg10 = avg(last10);
+	if (avg3 > avg7 && avg7 > avg10) return "up";
+	if (avg3 < avg7 && avg7 < avg10) return "down";
+	return "neutral";
 };
 
-const normalizeCombined = (teamA: PlayerStats[], teamB: PlayerStats[]) => {
-	const allPlayers = [...teamA, ...teamB];
-	const hitsMax = Math.max(...allPlayers.map((p) => p.hits), 1);
-	const strikeoutsMax = Math.max(...allPlayers.map((p) => p.strikeouts), 1);
-	const basesMax = Math.max(...allPlayers.map((p) => p.bases), 1);
+const computeDueHit = (last7: number[], avgZeroStreak: number) => {
+	let zeroStreak = 0;
+	for (let i = last7.length - 1; i >= 0; i--) {
+		if (last7[i] === 0) zeroStreak++;
+		else break;
+	}
+	return zeroStreak >= avgZeroStreak;
+};
 
-	const normalize = (players: PlayerStats[]) =>
-		players.map((p) => ({
-			...p,
-			normalizedScore:
-				(p.hits / hitsMax +
-					(1 - p.strikeouts / strikeoutsMax) +
-					p.bases / basesMax) /
-				3,
-		}));
-
-	return { teamA: normalize(teamA), teamB: normalize(teamB) };
+const computePlacementScore = (player: PlayerWithTrend) => {
+	const base = player.normalizedScore || 0;
+	const trendFactor =
+		player.trend === "up" ? 1.1 : player.trend === "down" ? 0.9 : 1.0;
+	const dueHitFactor = player.dueHit ? 1.05 : 1.0;
+	return base * trendFactor * dueHitFactor;
 };
 
 export default function BreakdownPage() {
 	const searchParams = useSearchParams();
-
-	const teamAId = useMemo(() => searchParams.get("teamA"), [searchParams]);
-	const teamBId = useMemo(() => searchParams.get("teamB"), [searchParams]);
-
+	const teamAId = useMemo(
+		() => Number(searchParams.get("teamA")),
+		[searchParams]
+	);
+	const teamBId = useMemo(
+		() => Number(searchParams.get("teamB")),
+		[searchParams]
+	);
 	const rawGamePks = useMemo(() => searchParams.get("gamePks"), [searchParams]);
+
 	const gamePks: number[] = useMemo(() => {
 		try {
 			return JSON.parse(rawGamePks ?? "[]");
@@ -98,205 +99,139 @@ export default function BreakdownPage() {
 
 		let cancelled = false;
 
-		const computeTrend = (
-			last3: number[],
-			last7: number[],
-			last10: number[]
-		) => {
-			const avg3 = last3.reduce((a, b) => a + b, 0) / Math.max(last3.length, 1);
-			const avg7 = last7.reduce((a, b) => a + b, 0) / Math.max(last7.length, 1);
-			const avg10 =
-				last10.reduce((a, b) => a + b, 0) / Math.max(last10.length, 1);
-			if (avg3 > avg7 && avg7 > avg10) return "up";
-			if (avg3 < avg7 && avg7 < avg10) return "down";
-			return "neutral";
-		};
-
-		const computeDueHit = (last7: number[], avgZeroStreak: number) => {
-			let zeroStreak = 0;
-			for (let i = last7.length - 1; i >= 0; i--) {
-				if (last7[i] === 0) zeroStreak++;
-				else break;
-			}
-			return zeroStreak >= avgZeroStreak;
-		};
-
-		const computePlacementScore = (player: PlayerWithTrend) => {
-			const base = player.normalizedScore || 0;
-			const trendFactor =
-				player.trend === "up" ? 1.1 : player.trend === "down" ? 0.9 : 1.0;
-			const dueHitFactor = player.dueHit ? 1.05 : 1.0;
-			return base * trendFactor * dueHitFactor;
-		};
-
-		const fetchLastNGames = async (playerId: number, n = 10) => {
-			try {
-				const res = await fetch(
-					`https://statsapi.mlb.com/api/v1/people/${playerId}/stats?stats=gameLog&group=hitting&gameType=R&season=2025`
-				);
-				if (!res.ok) throw new Error("Failed to fetch player stats");
-
-				const data = await res.json();
-				const splits = data?.stats?.[0]?.splits || [];
-				const lastNGames = splits.slice(-n);
-				const hits = lastNGames.map((g: any) => g.stat?.hits ?? 0);
-				const strikeouts = lastNGames.map((g: any) => g.stat?.strikeOuts ?? 0);
-				return { hits, strikeouts };
-			} catch (error) {
-				console.error("Failed to fetch last N games", error);
-				return {
-					hits: Array(n).fill(0),
-					strikeouts: Array(n).fill(0),
-				};
-			}
-		};
-
 		async function fetchStats() {
 			setLoading(true);
-			setTeamAPlayers([]);
-			setTeamBPlayers([]);
 
 			try {
-				const allAStats: PlayerStats[][] = [];
-				const allBStats: PlayerStats[][] = [];
-				let teamAInfoSet: TeamInfo | null = null;
-				let teamBInfoSet: TeamInfo | null = null;
+				// 1) Season totals via endpoints
+				const seasonA = await getPlayerStatsForSeason(teamAId, 2025);
+				const seasonB = await getPlayerStatsForSeason(teamBId, 2025);
 
-				const chunkSize = 3;
-				for (let i = 0; i < gamePks.length; i += chunkSize) {
-					const chunk = gamePks.slice(i, i + chunkSize);
+				if (seasonA.status !== 200 || seasonB.status !== 200) {
+					throw new Error("Failed to load season stats");
+				}
 
-					await Promise.all(
-						chunk.map(async (gamePk) => {
-							const res = await fetch(
-								`https://statsapi.mlb.com/api/v1/game/${gamePk}/boxscore`
-							);
-							const data = await res.json();
-							const homeTeam = data.teams.home;
-							const awayTeam = data.teams.away;
+				const playersA: PlayerStats[] = seasonA.players ?? [];
+				const playersB: PlayerStats[] = seasonB.players ?? [];
 
-							const getPlayerIds = (team: any) =>
-								Object.values(team.players).map((p: any) => p.person.id);
+				// 2) Normalize across both teams (so normalizedScore != 0)
+				const allPlayers = [...playersA, ...playersB];
+				const hitsMax = Math.max(...allPlayers.map((p) => p.hits), 1);
+				const strikeoutsMax = Math.max(
+					...allPlayers.map((p) => p.strikeouts),
+					1
+				);
+				const basesMax = Math.max(...allPlayers.map((p) => p.bases), 1);
 
-							const teamAIsHome = Number(teamAId) === homeTeam.team.id;
-							const teamAPlayersIds = teamAIsHome
-								? getPlayerIds(homeTeam)
-								: getPlayerIds(awayTeam);
-							const teamBPlayersIds = teamAIsHome
-								? getPlayerIds(awayTeam)
-								: getPlayerIds(homeTeam);
+				const normalize = (p: PlayerStats) => ({
+					...p,
+					normalizedScore:
+						(p.hits / hitsMax +
+							(1 - p.strikeouts / strikeoutsMax) +
+							p.bases / basesMax) /
+						3,
+				});
 
-							const [aStatsRes, bStatsRes] = await Promise.all([
-								getPlayerStatsForGame(teamAPlayersIds, Number(gamePk)),
-								getPlayerStatsForGame(teamBPlayersIds, Number(gamePk)),
-							]);
+				const normalizedA = playersA.map(normalize);
+				const normalizedB = playersB.map(normalize);
 
-							allAStats.push(aStatsRes.players ?? []);
-							allBStats.push(bStatsRes.players ?? []);
+				// 3) Resolve team names via getTeams (keeps fetching inside endpoints file)
+				const teamsRes = await getTeams();
+				let teamAName = `Team ${teamAId}`;
+				let teamBName = `Team ${teamBId}`;
+				if (teamsRes.status === 200) {
+					const foundA = (teamsRes.teams || []).find(
+						(t: any) => t.id === teamAId
+					);
+					const foundB = (teamsRes.teams || []).find(
+						(t: any) => t.id === teamBId
+					);
+					if (foundA) teamAName = foundA.name;
+					if (foundB) teamBName = foundB.name;
+				}
 
-							if (!teamAInfoSet || !teamBInfoSet) {
-								const getTeamInfo = (team: any): TeamInfo => ({
-									id: team.team.id,
-									name: team.team.name,
-									logoUrl: `https://www.mlbstatic.com/team-logos/${team.team.id}.svg`,
-									playerIds: Object.values(team.players).map(
-										(p: any) => p.person.id
-									),
-								});
+				// 4) For each player, fetch their last N games using new helper
+				const addTrend = async (
+					players: (PlayerStats & { normalizedScore?: number })[]
+				) =>
+					Promise.all(
+						players.map(async (p) => {
+							const lg = await getPlayerGameLog(p.id, 2025, 10);
+							const hits = Array.isArray(lg.hits) ? lg.hits : [];
+							const strikeouts = Array.isArray(lg.strikeouts)
+								? lg.strikeouts
+								: [];
 
-								teamAInfoSet = teamAIsHome
-									? getTeamInfo(homeTeam)
-									: getTeamInfo(awayTeam);
-								teamBInfoSet = teamAIsHome
-									? getTeamInfo(awayTeam)
-									: getTeamInfo(homeTeam);
-							}
+							const last10 = hits.slice(-10);
+							const last7 = hits.slice(-7);
+							const last3 = hits.slice(-3);
+
+							const last10Strikeouts = strikeouts.slice(-10);
+							const last7Strikeouts = strikeouts.slice(-7);
+							const last3Strikeouts = strikeouts.slice(-3);
+
+							const trend = computeTrend(last3, last7, last10);
+							const dueHit = computeDueHit(last7, 2);
+
+							return {
+								...p,
+								normalizedScore: p.normalizedScore || 0,
+								last10Games: last10,
+								last7Games: last7,
+								last3Games: last3,
+								last10Strikeouts,
+								last7Strikeouts,
+								last3Strikeouts,
+								trend,
+								showGraph: false,
+								dueHit,
+							} as PlayerWithTrend;
 						})
 					);
 
-					if (!cancelled) {
-						const combinedA = combineStats(allAStats);
-						const combinedB = combineStats(allBStats);
+				// run concurrently for both teams
+				const [trendA, trendB] = await Promise.all([
+					addTrend(normalizedA),
+					addTrend(normalizedB),
+				]);
 
-						const { teamA: normalizedA, teamB: normalizedB } =
-							normalizeCombined(combinedA, combinedB);
+				if (!cancelled) {
+					setTeamAInfo({
+						id: teamAId,
+						name: teamAName,
+						logoUrl: `https://www.mlbstatic.com/team-logos/${teamAId}.svg`,
+						playerIds: normalizedA.map((p) => p.id),
+					});
+					setTeamBInfo({
+						id: teamBId,
+						name: teamBName,
+						logoUrl: `https://www.mlbstatic.com/team-logos/${teamBId}.svg`,
+						playerIds: normalizedB.map((p) => p.id),
+					});
 
-						const addTrend = async (
-							players: PlayerStats[]
-						): Promise<PlayerWithTrend[]> =>
-							Promise.all(
-								players.map(async (p) => {
-									const last10 = await fetchLastNGames(p.id, 10);
-									const last7 = last10.hits.slice(-7);
-									const last3 = last10.hits.slice(-3);
-
-									const last10Strikeouts = last10.strikeouts;
-									const last7Strikeouts = last10.strikeouts.slice(-7);
-									const last3Strikeouts = last10.strikeouts.slice(-3);
-
-									const trend = computeTrend(last3, last7, last10.hits);
-
-									const avgZeroStreak = 2;
-									const dueHit = computeDueHit(last7, avgZeroStreak);
-
-									return {
-										...p,
-										normalizedScore: p.normalizedScore || 0,
-										last10Games: last10.hits,
-										last7Games: last7,
-										last3Games: last3,
-										last10Strikeouts,
-										last7Strikeouts,
-										last3Strikeouts,
-										trend,
-										showGraph: false,
-										dueHit,
-									};
-								})
-							);
-
-						const trendA = await addTrend(normalizedA);
-						const trendB = await addTrend(normalizedB);
-
-						setTeamAInfo(teamAInfoSet);
-						setTeamBInfo(teamBInfoSet);
-
-						setTeamAPlayers(
-							trendA
-								.map((p) => ({
-									...p,
-									placementScore: computePlacementScore(p),
-								}))
-								.sort(
-									(a, b) => (b.placementScore || 0) - (a.placementScore || 0)
-								)
-						);
-						setTeamBPlayers(
-							trendB
-								.map((p) => ({
-									...p,
-									placementScore: computePlacementScore(p),
-								}))
-								.sort(
-									(a, b) => (b.placementScore || 0) - (a.placementScore || 0)
-								)
-						);
-					}
+					setTeamAPlayers(
+						trendA
+							.map((p) => ({ ...p, placementScore: computePlacementScore(p) }))
+							.sort((a, b) => (b.placementScore || 0) - (a.placementScore || 0))
+					);
+					setTeamBPlayers(
+						trendB
+							.map((p) => ({ ...p, placementScore: computePlacementScore(p) }))
+							.sort((a, b) => (b.placementScore || 0) - (a.placementScore || 0))
+					);
 				}
 			} catch (error) {
-				console.error("Failed to fetch player stats:", error);
+				console.error("Failed to fetch stats:", error);
 			} finally {
 				if (!cancelled) setLoading(false);
 			}
 		}
 
 		fetchStats();
-
 		return () => {
 			cancelled = true;
 		};
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [teamAId, teamBId, gamePks.join(",")]);
+	}, [teamAId, teamBId, gamePks]);
 
 	const toggleGraph = (playerId: number, team: "A" | "B") => {
 		const updatePlayers = (players: PlayerWithTrend[]) =>
@@ -346,8 +281,8 @@ export default function BreakdownPage() {
 							<XAxis dataKey="game" />
 							<YAxis />
 							<Tooltip />
-							<Line type="monotone" dataKey="hits" stroke="#4ade80" />
-							<Line type="monotone" dataKey="strikeouts" stroke="#f87171" />
+							<Line type="monotone" dataKey="hits" />
+							<Line type="monotone" dataKey="strikeouts" />
 						</LineChart>
 					</ResponsiveContainer>
 				</div>
@@ -361,8 +296,6 @@ export default function BreakdownPage() {
 	return (
 		<div className="flex flex-col items-center p-4">
 			<h1 className="text-xl font-bold mb-6">Matchup Player Breakdown</h1>
-
-			<br />
 
 			<div className="flex w-full md:flex-row flex-col max-w-[1000px] gap-6">
 				<div className="flex-1">
