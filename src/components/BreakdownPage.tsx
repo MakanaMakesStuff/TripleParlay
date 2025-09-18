@@ -282,7 +282,7 @@ export default function BreakdownPage() {
 							<YAxis />
 							<Tooltip />
 							<Line type="monotone" dataKey="hits" />
-							<Line type="monotone" dataKey="strikeouts" />
+							<Line type="monotone" dataKey="strikeouts" stroke="red" />
 						</LineChart>
 					</ResponsiveContainer>
 				</div>
