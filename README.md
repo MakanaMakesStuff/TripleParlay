@@ -1,7 +1,7 @@
 # MLB Player Odds Scoring
 
 This module calculates player probabilities, scores, and American betting odds for MLB hitters. It is designed for parlay generation and player evaluation.
-[visit site](https://triple-parlay-7mo1ed9oy-makanaokeakua-edwards-projects.vercel.app/team/133)
+[visit site](https://triple-parlay-7mo1ed9oy-makanaokeakua-edwards-projects.vercel.app/)
 
 ---
 
