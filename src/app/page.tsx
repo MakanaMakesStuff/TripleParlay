@@ -19,8 +19,10 @@ export default function Home() {
 	useEffect(() => {
 		async function fetchTeams() {
 			try {
+				const currentYear = new Date().getFullYear();
+
 				const res = await fetch(
-					"https://statsapi.mlb.com/api/v1/teams?sportId=1&season=2025"
+					`https://statsapi.mlb.com/api/v1/teams?sportId=1&season=${currentYear}`,
 				);
 				const json = await res.json();
 				setTeams(
@@ -30,7 +32,7 @@ export default function Home() {
 						name: t.name,
 						abbreviation: t.abbreviation,
 						logoUrl: `https://www.mlbstatic.com/team-logos/${t.id}.svg`,
-					}))
+					})),
 				);
 				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			} catch (err: any) {

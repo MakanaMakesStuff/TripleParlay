@@ -43,15 +43,17 @@ export async function getPlayerProbability(playerId: number): Promise<{
 	try {
 		// --- Fetch player info ---
 		const playerRes = await fetch(
-			`https://statsapi.mlb.com/api/v1/people/${playerId}`
+			`https://statsapi.mlb.com/api/v1/people/${playerId}`,
 		);
 		const playerJson = await playerRes.json();
 		const player = playerJson.people?.[0];
 		playerName = player?.fullName ?? "Player";
 
+		const currentYear = new Date().getFullYear();
+
 		// --- Fetch last 50 game logs for hitting ---
 		const gameRes = await fetch(
-			`https://statsapi.mlb.com/api/v1/people/${playerId}/stats?stats=gameLog&group=hitting&gameType=R&season=2025`
+			`https://statsapi.mlb.com/api/v1/people/${playerId}/stats?stats=gameLog&group=hitting&gameType=R&season=${currentYear}`,
 		);
 		const gameJson = await gameRes.json();
 		const gameLogs = gameJson.stats?.[0]?.splits ?? [];
@@ -186,7 +188,8 @@ export function scoreHitterProp(stats: HitterStats) {
 
 	// convert to American odds (fair odds)
 	let americanOdds: number;
-	if (raw === 0) americanOdds = 100000; // arbitrarily large
+	if (raw === 0)
+		americanOdds = 100000; // arbitrarily large
 	else {
 		if (raw >= 0.5) {
 			americanOdds = -Math.round((raw / (1 - raw)) * 100);
