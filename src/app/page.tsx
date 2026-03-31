@@ -78,9 +78,6 @@ export default function Home() {
 			{/* Header & Toggle */}
 			<div className="w-full max-w-6xl flex flex-col items-center gap-6 mb-4">
 				<div className="text-center">
-					<h1 className="text-4xl font-black text-gray-900 tracking-tight">
-						Triple Parlay
-					</h1>
 					<p className="text-lg text-gray-500 mt-1 font-medium">
 						Daily Prop Research
 					</p>

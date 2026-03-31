@@ -56,7 +56,7 @@ export default async function PlayerPage({ params }: Props) {
 	};
 
 	return (
-		<div className="flex flex-col items-center min-h-screen p-8 gap-8 bg-gray-100">
+		<div className="flex flex-col items-center min-h-screen p-8 gap-8 bg-gray-50">
 			<h1 className="text-3xl font-bold text-gray-800 flex flex-row flex-wrap gap-2 justify-center items-center">
 				<Image
 					src={`https://www.mlbstatic.com/team-logos/${teamId}.svg`}
@@ -161,7 +161,7 @@ export default async function PlayerPage({ params }: Props) {
 				</div>
 
 				{/* Right column: Chart */}
-				<div className="rounded-xl p-6 bg-white shadow flex-1">
+				<div className="rounded-xl p-6 bg-white shadow flex-1 h-max">
 					<h2 className="text-xl font-semibold mb-4">Recent Performance</h2>
 					{/* Your chart can now also access hr, k, and bb data via playerResult.last30Games if you want to expand it later */}
 					<PlayerChart
