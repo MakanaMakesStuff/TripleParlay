@@ -25,7 +25,7 @@ export default async function PlayerPage({ params }: Props) {
 		`https://statsapi.mlb.com/api/v1/people/${playerId}`,
 		{
 			next: { revalidate: 60 * 60 }, // cache for 1h
-		}
+		},
 	);
 
 	const json = await res.json();
@@ -75,7 +75,6 @@ export default async function PlayerPage({ params }: Props) {
 				← Back to Team
 			</Link>
 
-			{/* New layout */}
 			<div className="flex flex-col justify-stretch items-stretch md:flex-row gap-6 w-full max-w-6xl text-gray-700">
 				{/* Left column: Bio + Probability */}
 				<div className="flex flex-col gap-6 w-full md:w-1/3">
@@ -129,6 +128,32 @@ export default async function PlayerPage({ params }: Props) {
 							)}
 						</p>
 
+						{/* --- NEW STATS --- */}
+						<hr className="w-full border-gray-200 my-4" />
+
+						<p className="text-md font-semibold text-gray-600">
+							HR Rate (PA):{" "}
+							<span className="font-mono text-gray-800">
+								{playerResult.rawHrProbability.toFixed(3)}
+							</span>
+						</p>
+
+						<p className="text-md font-semibold text-gray-600 mt-2">
+							Strikeout Rate (K%):{" "}
+							<span className="font-mono text-gray-800">
+								{playerResult.rawKProbability.toFixed(3)}
+							</span>
+						</p>
+
+						<p className="text-md font-semibold text-gray-600 mt-2">
+							Walk Rate (BB%):{" "}
+							<span className="font-mono text-gray-800">
+								{playerResult.rawBbProbability.toFixed(3)}
+							</span>
+						</p>
+
+						<hr className="w-full border-gray-200 my-4" />
+
 						<p className="text-lg font-semibold mt-2">
 							Trajectory: {getTrajectoryIcon()}
 						</p>
@@ -138,6 +163,7 @@ export default async function PlayerPage({ params }: Props) {
 				{/* Right column: Chart */}
 				<div className="rounded-xl p-6 bg-white shadow flex-1">
 					<h2 className="text-xl font-semibold mb-4">Recent Performance</h2>
+					{/* Your chart can now also access hr, k, and bb data via playerResult.last30Games if you want to expand it later */}
 					<PlayerChart
 						allRecentGames={playerResult.last30Games}
 						nextHitProb={playerResult.rawHitProbability}

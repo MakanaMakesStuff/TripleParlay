@@ -7,7 +7,8 @@ import { getPlayerProbability, PlayerResult } from "@/utils/probability";
 import { ArrowUpCircle, ArrowDownCircle, MinusCircle } from "lucide-react";
 import Image from "next/image";
 
-type SortOption = "hit" | "base";
+// 1. Added new sort options
+type SortOption = "hit" | "base" | "hr" | "k" | "bb";
 type SortOrder = "asc" | "desc";
 
 export default function TeamPage() {
@@ -29,16 +30,16 @@ export default function TeamPage() {
 			setLoading(true);
 			try {
 				const teamRes = await fetch(
-					`https://statsapi.mlb.com/api/v1/teams/${teamId}`
+					`https://statsapi.mlb.com/api/v1/teams/${teamId}`,
 				);
 				const teamJson = await teamRes.json();
 				setTeamName(teamJson.teams?.[0]?.name || "Team");
 				setTeamLogo(
-					`https://www.mlbstatic.com/team-logos/${teamJson.teams?.[0]?.id}.svg`
-				); // MLB API might use "teamLogo" or "logo" field, adjust accordingly
+					`https://www.mlbstatic.com/team-logos/${teamJson.teams?.[0]?.id}.svg`,
+				);
 
 				const rosterRes = await fetch(
-					`https://statsapi.mlb.com/api/v1/teams/${teamId}/roster`
+					`https://statsapi.mlb.com/api/v1/teams/${teamId}/roster`,
 				);
 				const rosterJson = await rosterRes.json();
 				const roster = rosterJson.roster ?? [];
@@ -53,7 +54,7 @@ export default function TeamPage() {
 					} catch (innerErr) {
 						console.error(
 							`Error fetching stats for ${player.person.fullName}`,
-							innerErr
+							innerErr,
 						);
 					}
 				}
@@ -71,12 +72,35 @@ export default function TeamPage() {
 		fetchTeamAndRoster();
 	}, [teamId]);
 
+	// 2. Updated sorting logic to account for the new stats
 	const sortedResults = useMemo(() => {
 		return [...results].sort((a, b) => {
-			const valA =
-				sortOption === "hit" ? a.rawHitProbability : a.rawBaseProbability;
-			const valB =
-				sortOption === "hit" ? b.rawHitProbability : b.rawBaseProbability;
+			let valA = 0;
+			let valB = 0;
+
+			switch (sortOption) {
+				case "hit":
+					valA = a.rawHitProbability;
+					valB = b.rawHitProbability;
+					break;
+				case "base":
+					valA = a.rawBaseProbability;
+					valB = b.rawBaseProbability;
+					break;
+				case "hr":
+					valA = a.rawHrProbability;
+					valB = b.rawHrProbability;
+					break;
+				case "k":
+					valA = a.rawKProbability;
+					valB = b.rawKProbability;
+					break;
+				case "bb":
+					valA = a.rawBbProbability;
+					valB = b.rawBbProbability;
+					break;
+			}
+
 			return sortOrder === "asc" ? valA - valB : valB - valA;
 		});
 	}, [results, sortOption, sortOrder]);
@@ -130,8 +154,12 @@ export default function TeamPage() {
 						onChange={(e) => setSortOption(e.target.value as SortOption)}
 						className="text-gray-700 bg-neutral-50 shadow-sm px-4 py-2 rounded"
 					>
+						{/* 3. Added new drop down options */}
 						<option value="hit">Hit Probability</option>
 						<option value="base">Base Probability</option>
+						<option value="hr">HR Rate</option>
+						<option value="k">Strikeout Rate</option>
+						<option value="bb">Walk Rate</option>
 					</select>
 
 					<select
@@ -150,31 +178,65 @@ export default function TeamPage() {
 					<Link
 						href={`/team/${teamId}/${p.id}`}
 						key={p.id}
-						className="cursor-pointer rounded-xl p-6 text-center bg-neutral-50 shadow hover:shadow-lg hover:scale-105 transition-transform"
+						className="cursor-pointer rounded-xl p-6 text-center bg-neutral-50 shadow hover:shadow-lg hover:scale-105 transition-transform flex flex-col justify-between"
 					>
-						<strong className="text-xl">{p.name}</strong>
+						<div>
+							<strong className="text-xl">{p.name}</strong>
 
-						<hr className="border-gray-700 mt-1 mb-4" />
+							<hr className="border-gray-300 mt-2 mb-4" />
 
-						<p className="text-lg font-semibold">
-							Hit Probability:{" "}
-							<span className="font-mono">
-								{p.rawHitProbability.toFixed(3)}
-							</span>
-							{p.hitDue && <span className="text-green-400 ml-2">(Due)</span>}
-						</p>
+							<p className="text-lg font-semibold">
+								Hit Probability:{" "}
+								<span className="font-mono text-gray-800">
+									{p.rawHitProbability.toFixed(3)}
+								</span>
+								{p.hitDue && (
+									<span className="text-green-500 ml-2 text-sm">(Due)</span>
+								)}
+							</p>
 
-						<p className="text-lg font-semibold">
-							Base Probability:{" "}
-							<span className="font-mono">
-								{p.rawBaseProbability.toFixed(3)}
-							</span>
-							{p.baseDue && <span className="text-orange-400 ml-2">(Due)</span>}
-						</p>
+							<p className="text-lg font-semibold mt-1">
+								Base Probability:{" "}
+								<span className="font-mono text-gray-800">
+									{p.rawBaseProbability.toFixed(3)}
+								</span>
+								{p.baseDue && (
+									<span className="text-orange-500 ml-2 text-sm">(Due)</span>
+								)}
+							</p>
 
-						<p className="text-lg font-semibold">
-							Trajectory: {getTrajectoryIcon(p.trajectory)}
-						</p>
+							<p className="text-md font-semibold mt-2 text-gray-600 flex items-center justify-center">
+								Trajectory: {getTrajectoryIcon(p.trajectory)}
+							</p>
+						</div>
+
+						{/* 4. Formatted HR, K, and BB as percentages for readability */}
+						<div className="grid grid-cols-3 gap-2 mt-5 pt-4 border-t border-gray-200">
+							<div className="text-center">
+								<div className="text-xs text-gray-400 uppercase tracking-wider">
+									HR Rate
+								</div>
+								<div className="font-mono text-sm font-semibold text-gray-700">
+									{(p.rawHrProbability * 100).toFixed(1)}%
+								</div>
+							</div>
+							<div className="text-center border-l border-r border-gray-200">
+								<div className="text-xs text-gray-400 uppercase tracking-wider">
+									K Rate
+								</div>
+								<div className="font-mono text-sm font-semibold text-gray-700">
+									{(p.rawKProbability * 100).toFixed(1)}%
+								</div>
+							</div>
+							<div className="text-center">
+								<div className="text-xs text-gray-400 uppercase tracking-wider">
+									BB Rate
+								</div>
+								<div className="font-mono text-sm font-semibold text-gray-700">
+									{(p.rawBbProbability * 100).toFixed(1)}%
+								</div>
+							</div>
+						</div>
 					</Link>
 				))}
 			</div>
